@@ -1,0 +1,11 @@
+*/bin/*
+*/obj/*
+
+*.suo
+*.sdf
+*.opensdf
+*.cache
+*.pdb
+*.mdb
+*.csproj.user
+.vs/
