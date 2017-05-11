@@ -44,6 +44,7 @@ namespace BindTools
 				new SqlColumn("UserID", MySqlDbType.Int32),
 				new SqlColumn("ItemID", MySqlDbType.Int32),
 				new SqlColumn("Commands", MySqlDbType.Text),
+				new SqlColumn("Awaiting", MySqlDbType.Int32),
 				new SqlColumn("Looping", MySqlDbType.Int32),
 				new SqlColumn("Slot", MySqlDbType.Int32),
 				new SqlColumn("Prefix", MySqlDbType.Int32)));
@@ -51,9 +52,9 @@ namespace BindTools
 
 		public static void BTAdd(int UserID, BindTool BTItem)
 		{
-			db.Query("INSERT INTO BindTools (UserID, ItemID, Commands, Looping, Slot, Prefix) " +
-				"VALUES (@0, @1, @2, @3, @4, @5);", UserID, BTItem.item.netID, string.Join("~;*;~", BTItem.commands),
-					(BTItem.looping ? 1 : 0), BTItem.slot, BTItem.prefix);
+			db.Query("INSERT INTO BindTools (UserID, ItemID, Commands, Awaiting, Looping, Slot, Prefix) " +
+				"VALUES (@0, @1, @2, @3, @4, @5, @6);", UserID, BTItem.item, string.Join("~;*;~", BTItem.commands),
+					(BTItem.awaiting ? 1 : 0), (BTItem.looping ? 1 : 0), BTItem.slot, BTItem.prefix);
 		}
 
 		public static void BTDelete(int UserID, int ItemID)
@@ -61,9 +62,9 @@ namespace BindTools
 			db.Query("DELETE FROM BindTools WHERE UserID=@0 AND ItemID=@1;", UserID, ItemID);
 		}
 
-		public static void BTDelete(int UserID, int ItemID, int Slot)
+		public static void BTDelete(int UserID, int ItemID, int SlotOrPrefix, bool Slot = true)
 		{
-			db.Query("DELETE FROM BindTools WHERE UserID=@0 AND ItemID=@1 AND Slot=@2;", UserID, ItemID, Slot);
+			db.Query("DELETE FROM BindTools WHERE UserID=@0 AND ItemID=@1 AND " + (Slot ? "Slot" : "Prefix") + "=@2;", UserID, ItemID, SlotOrPrefix);
 		}
 
 		public static void BTDelete(int UserID, int ItemID, int Slot, int Prefix)
@@ -82,11 +83,12 @@ namespace BindTools
 					Item Item = TShock.Utils.GetItemById(reader.Get<int>("ItemID"));
 					IEnumerable<string> commands = reader.Get<string>("Commands").Split('~', ';', '*', ';', '~');
 					List<string> Commands = (from string c in commands where (c != "") select c).ToList();
+					bool Awaiting = (reader.Get<int>("Awaiting") == 1);
 					int Slot = reader.Get<int>("Slot");
 					int Prefix = reader.Get<int>("Prefix");
 					bool Looping = (reader.Get<int>("Looping") == 1);
 
-					BTools.Add(new BindTool(Item, Slot, Commands, Looping, Prefix, true));
+					BTools.Add(new BindTool(Item.netID, Slot, Commands, Awaiting, Looping, Prefix, true));
 				}
 			}
 

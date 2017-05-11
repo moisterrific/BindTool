@@ -1,22 +1,24 @@
 using System;
 using System.Collections.Generic;
 using TShockAPI;
-using Terraria;
+
 namespace BindTools
 {
 	public class BindTool
 	{
 		public List<string> commands;
-		public Item item;
+		public bool awaiting;
+		public int item;
 		public bool looping;
 		public int slot;
 		public int prefix;
 		public bool database;
 		private int count;
-		public BindTool(Item item, int slot, List<string> commands, bool looping = false, int prefix = -1, bool database = false)
+		public BindTool(int item, int slot, List<string> commands, bool awaiting = false, bool looping = false, int prefix = -1, bool database = false)
 		{
 			this.item = item;
 			this.commands = commands;
+			this.awaiting = awaiting;
 			this.looping = looping;
 			this.slot = slot;
 			this.prefix = prefix;
@@ -29,7 +31,11 @@ namespace BindTools
 			{
 				if (looping)
 				{
-					Commands.HandleCommand(player, commands[count]);
+					if (awaiting)
+					{
+						BindTools.BTPlayers[player.Index].AddCommand(commands[count]);
+						player.SendInfoMessage("Command {0} added in queue! Use /bindwait to see current awaiting command.", commands[count]);
+					} else { Commands.HandleCommand(player, commands[count]); }
 					count++;
 					if (count >= commands.Count)
 						count = 0;
@@ -38,7 +44,12 @@ namespace BindTools
 				{
 					foreach (string cmd in commands)
 					{
-						Commands.HandleCommand(player, cmd);
+						if (awaiting)
+						{
+							BindTools.BTPlayers[player.Index].AddCommand(cmd);
+							player.SendInfoMessage("Command {0} added in queue! Use /bindwait to see current awaiting command.", cmd);
+						}
+						else { Commands.HandleCommand(player, cmd); }
 					}
 				}
 			}
