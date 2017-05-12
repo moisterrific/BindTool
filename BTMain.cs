@@ -195,6 +195,9 @@ namespace BindTools
 			var cmdstring = string.Join(" ", NewArgs.GetRange(flagmod, NewArgs.Count - flagmod));
 			List<string> cmdlist = cmdstring.Split(';').ToList();
 
+			for (int i = 0; i < cmdlist.Count; i++)
+			{ cmdlist[i] = cmdlist[i].TrimStart(' '); }
+
 			player.AddBindTool(new BindTool(item.netID, (slot ? args.Player.TPlayer.selectedItem : -1), cmdlist, awaiting, looping, (prefix ? item.prefix : -1), database), database);
 
 			string Prefix = Lang.prefix[item.prefix].Value;

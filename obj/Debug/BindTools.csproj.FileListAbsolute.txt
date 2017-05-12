@@ -10,3 +10,4 @@ C:\Users\Дарья\Source\Repos\BindTool\bin\Debug\HttpServer.dll
 C:\Users\Дарья\Source\Repos\BindTool\bin\Debug\BCrypt.Net.dll
 C:\Users\Дарья\Source\Repos\BindTool\obj\Debug\BindTools.dll
 C:\Users\Дарья\Source\Repos\BindTool\obj\Debug\BindTools.pdb
+C:\Users\Дарья\Source\Repos\BindTool\obj\Debug\BindTools.csprojResolveAssemblyReference.cache
