@@ -26,15 +26,15 @@ namespace BindTools
 			ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
 			PlayerHooks.PlayerPostLogin += OnLogin;
 			GetDataHandlers.PlayerUpdate += OnPlayerUpdate;
-			Commands.ChatCommands.Add(new Command("bindtool", BindToolCMD, "bindtool", "bt")
+			Commands.ChatCommands.Add(new Command("bindtools.bind", BindToolCMD, "bindtool", "bt")
 			{
 				AllowServer = false,
-				HelpText = string.Format("Use '{0}bindtool help'.", TShock.Config.CommandSpecifier)
+				HelpText = string.Format("Use '{0}bt help'.", TShock.Config.CommandSpecifier)
 			});
-			Commands.ChatCommands.Add(new Command("bindwait", BindWaitCMD, "bindwait", "bw")
+			Commands.ChatCommands.Add(new Command("bindtools.wait", BindWaitCMD, "bindwait", "bw")
 			{
 				AllowServer = false,
-				HelpText = string.Format("Use '{0}bindwait help'.", TShock.Config.CommandSpecifier)
+				HelpText = string.Format("Use '{0}bw help'.", TShock.Config.CommandSpecifier)
 			});
 			BTDatabase.DBConnect();
 		}
@@ -67,8 +67,8 @@ namespace BindTools
 				args.Player.SendMessage("BindTool usage:", Color.LightSalmon);
 				args.Player.SendMessage(string.Format("{0}bindtool [-flags] commands; separated; by semicolon", TShock.Config.CommandSpecifier), Color.BurlyWood);
 				args.Player.SendMessage("This will bind those commands to the current item in hand.", Color.BurlyWood);
-				args.Player.SendMessage(string.Format("Type {0}bindtool help for flag info.", TShock.Config.CommandSpecifier), Color.BurlyWood);
-				args.Player.SendMessage(string.Format("Type {0}bindtool list for current bind list.", TShock.Config.CommandSpecifier), Color.BurlyWood);
+				args.Player.SendMessage(string.Format("Type {0}bt help for flag info.", TShock.Config.CommandSpecifier), Color.BurlyWood);
+				args.Player.SendMessage(string.Format("Type {0}bt list for current bind list.", TShock.Config.CommandSpecifier), Color.BurlyWood);
 				return;
 			}
 
@@ -81,14 +81,14 @@ namespace BindTools
 					"-p will bind item only with certain prefix",
 					"[c/aaaa00:-d will add bind to database, so it will be saved and can be used after rejoin]",
 					"You can combine flags: -spd = slot + prefix + database",
-					string.Format("[c/aaaa00:-w instead of execution will add command to queue, so you could add parameters later] (write {0}bindtool help awaiting for more info)", TShock.Config.CommandSpecifier),
+					string.Format("[c/aaaa00:-w instead of execution will add command to queue, so you could add parameters later] (write {0}bt help wait for more info)", TShock.Config.CommandSpecifier),
 					"-c will clear all commands from the item at certain slot with certain prefix",
 					"[c/aaaa00:-csp = clear any bind on item; -cs = clear binds on item with certain prefix, but any slot; -cp = clear binds on item with certain slot, but any prefix]"
 				};
 				int page = 1;
 				if ((args.Parameters.Count > 1) && (!int.TryParse(args.Parameters[1], out page)))
 				{
-					if (args.Parameters[1].ToLower() == "awaiting")
+					if (args.Parameters[1].ToLower() == "wait")
 					{
 						page = 1;
 						Help = new List<string>
@@ -104,7 +104,7 @@ namespace BindTools
 						new PaginationTools.Settings
 						{
 							HeaderFormat = "Bindtools help ({0}/{1}):",
-							FooterFormat = "Type {0}bindtool help {{0}} for more info.".SFormat(TShock.Config.CommandSpecifier)
+							FooterFormat = "Type {0}bt help {{0}} for more info.".SFormat(TShock.Config.CommandSpecifier)
 						}
 					);
 				return;
@@ -130,7 +130,7 @@ namespace BindTools
 						new PaginationTools.Settings
 						{
 							HeaderFormat = "Current binds ({0}/{1}):",
-							FooterFormat = "Type {0}bindtool list {{0}} for more info.".SFormat(TShock.Config.CommandSpecifier),
+							FooterFormat = "Type {0}bt list {{0}} for more info.".SFormat(TShock.Config.CommandSpecifier),
 							NothingToDisplayString = "You do not have any binds."
 						}
 					);
@@ -226,15 +226,15 @@ namespace BindTools
 			{
 				List<string> Help = new List<string>
 				{
-					string.Format("'{0}bindwait' - shows current awaiting command", TShock.Config.CommandSpecifier),
-					string.Format("[c/aaaa00:'{0}bindwait listall' - shows all awaiting commands]", TShock.Config.CommandSpecifier),
+					string.Format("[c/aaaa00:'{0}bindwait list' or '{0}bw list' - shows all awaiting commands]", TShock.Config.CommandSpecifier),
 					string.Format("'{0}bindwait skip <Count / \"all\">' - skips commands in queue", TShock.Config.CommandSpecifier),
-					string.Format("[c/aaaa00:'{0}bindwait <Argument1> <Argument2> ...' - executes current awaiting command with certain arguments]", TShock.Config.CommandSpecifier)
+					string.Format("[c/aaaa00:'{0}bindwait \"Argument1\" \"Argument2\" \"Argument3\" ...' - executes current awaiting command with certain arguments]", TShock.Config.CommandSpecifier),
+					"You need to fill all argument fields."
 				};
 				PaginationTools.SendPage(args.Player, 1, Help, new PaginationTools.Settings { HeaderFormat = "Bindwait help ({0}/{1}):" });
 				return;
 			}
-			else if (args.Parameters[0].ToLower() == "listall")
+			else if (args.Parameters[0].ToLower() == "list")
 			{
 				int page = 1;
 				if ((args.Parameters.Count > 1)
@@ -244,7 +244,7 @@ namespace BindTools
 						new PaginationTools.Settings
 						{
 							HeaderFormat = "Binds queue ({0}/{1}):",
-							FooterFormat = "Type {0}bindwait listall {{0}} for more info.".SFormat(TShock.Config.CommandSpecifier),
+							FooterFormat = "Type {0}bw list {{0}} for more info.".SFormat(TShock.Config.CommandSpecifier),
 							NothingToDisplayString = "You do not have any awaiting commands."
 						}
 					);
@@ -263,6 +263,7 @@ namespace BindTools
 				args.Player.SendSuccessMessage("Successfully skiped {0} commands.", count);
 				return;
 			}
+
 			if (!player.ExecuteCommand(args.Parameters.ToArray()))
 			{ args.Player.SendErrorMessage("Invalid text format!"); }
 		}
