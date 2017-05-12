@@ -81,7 +81,7 @@ namespace BindTools
 					"-p will bind item only with certain prefix",
 					"[c/aaaa00:-d will add bind to database, so it will be saved and can be used after rejoin]",
 					"You can combine flags: -spd = slot + prefix + database",
-					string.Format("[c/aaaa00:-w instead of execution will add command to queue, so you could add parameters later (write {0}bindtool help awaiting for more info)]", TShock.Config.CommandSpecifier),
+					string.Format("[c/aaaa00:-w instead of execution will add command to queue, so you could add parameters later] (write {0}bindtool help awaiting for more info)", TShock.Config.CommandSpecifier),
 					"-c will clear all commands from the item at certain slot with certain prefix",
 					"[c/aaaa00:-csp = clear any bind on item; -cs = clear binds on item with certain prefix, but any slot; -cp = clear binds on item with certain slot, but any prefix]"
 				};
@@ -123,7 +123,7 @@ namespace BindTools
 						b.awaiting,
 						b.looping,
 						((b.slot == -1) ? "Any" : (b.slot == 58) ? "Cursor" : "Hotbar-" + (b.slot + 1)),
-						((b.prefix == -1) ? "Any" : Lang.prefix[b.prefix].Value),
+						((b.prefix == -1) ? "Any" : (b.prefix == 0) ? "None" : Lang.prefix[b.prefix].Value),
 						b.database))
 				).ToList();
 				PaginationTools.SendPage(args.Player, page, Normal,
@@ -226,7 +226,7 @@ namespace BindTools
 					string.Format("'{0}bindwait' - shows current awaiting command", TShock.Config.CommandSpecifier),
 					string.Format("[c/aaaa00:'{0}bindwait listall' - shows all awaiting commands]", TShock.Config.CommandSpecifier),
 					string.Format("'{0}bindwait skip <Count / \"all\">' - skips commands in queue", TShock.Config.CommandSpecifier),
-					string.Format("[c/aaaa00:'{0}bindwait [Argument1] [Argument2] ...' - executes current awaiting command with certain arguments]", TShock.Config.CommandSpecifier)
+					string.Format("[c/aaaa00:'{0}bindwait <Argument1> <Argument2> ...' - executes current awaiting command with certain arguments]", TShock.Config.CommandSpecifier)
 				};
 				PaginationTools.SendPage(args.Player, 1, Help, new PaginationTools.Settings { HeaderFormat = "Bindwait help ({0}/{1}):" });
 				return;
