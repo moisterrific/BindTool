@@ -330,9 +330,7 @@ namespace BindTools
 		}
 
 		private static bool IsWhiteSpace(char c)
-		{
-			return c == ' ' || c == '\t' || c == '\n';
-		}
+		{ return c == ' ' || c == '\t' || c == '\n'; }
 
 		#endregion
 	}
