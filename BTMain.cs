@@ -25,7 +25,6 @@ namespace BindTools
 			ServerApi.Hooks.NetGreetPlayer.Register(this, OnGreet);
 			ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
 			PlayerHooks.PlayerPostLogin += OnLogin;
-			PlayerHooks.PlayerLogout += OnLogout;
 			GetDataHandlers.PlayerUpdate += OnPlayerUpdate;
 			Commands.ChatCommands.Add(new Command("bindtool", BindToolCMD, "bindtool", "bt")
 			{
@@ -46,7 +45,6 @@ namespace BindTools
 				ServerApi.Hooks.NetGreetPlayer.Deregister(this, OnGreet);
 				ServerApi.Hooks.ServerLeave.Deregister(this, OnLeave);
 				PlayerHooks.PlayerPostLogin -= OnLogin;
-				PlayerHooks.PlayerLogout -= OnLogout;
 				GetDataHandlers.PlayerUpdate -= OnPlayerUpdate;
 			}
 			base.Dispose(disposing);
@@ -54,8 +52,6 @@ namespace BindTools
 
 		private void OnGreet(GreetPlayerEventArgs args)
 		{ BTPlayers[args.Who] = new BTPlayer(args.Who); }
-		private void OnLogout(PlayerLogoutEventArgs args)
-		{ BTPlayers[args.Player.Index] = new BTPlayer(args.Player.Index); }
 		private void OnLogin(PlayerPostLoginEventArgs args)
 		{ BTPlayers[args.Player.Index] = new BTPlayer(args.Player.Index); }
 		private void OnLeave(LeaveEventArgs args)
