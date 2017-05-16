@@ -20,7 +20,7 @@ namespace BindTools
 		public override string Name { get { return "BindTools"; } }
 		public override string Author { get { return "by Jewsus & Anzhelika"; } }
 		public override string Description { get { return "Enables command binding to tools. Rewrite of InanZen's AdminTools"; } }
-		public override Version Version { get { return new Version("1.2"); } }
+		public override Version Version { get { return new Version("1.3"); } }
 		public BindTools(Main game) : base(game) { }
 
 		public override void Initialize()
