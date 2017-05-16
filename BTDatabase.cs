@@ -48,7 +48,27 @@ namespace BindTools
 				new SqlColumn("Looping", MySqlDbType.Int32),
 				new SqlColumn("Slot", MySqlDbType.Int32),
 				new SqlColumn("Prefix", MySqlDbType.Int32)));
+
+			sqlcreator.EnsureTableStructure(new SqlTable("GlobalBinds",
+				new SqlColumn("Name", MySqlDbType.Text),
+				new SqlColumn("ItemID", MySqlDbType.Int32),
+				new SqlColumn("Permission", MySqlDbType.Text),
+				new SqlColumn("Commands", MySqlDbType.Text),
+				new SqlColumn("Awaiting", MySqlDbType.Int32),
+				new SqlColumn("Looping", MySqlDbType.Int32),
+				new SqlColumn("Slot", MySqlDbType.Int32),
+				new SqlColumn("Prefix", MySqlDbType.Int32)));
+
+			sqlcreator.EnsureTableStructure(new SqlTable("Prefixes",
+				new SqlColumn("Name", MySqlDbType.Text),
+				new SqlColumn("Permission", MySqlDbType.Text),
+				new SqlColumn("Allowed", MySqlDbType.Text)));
+
+			GBGet();
+			PGet();
 		}
+
+		#region BindTools
 
 		public static void BTAdd(int UserID, BindTool BTItem)
 		{
@@ -94,5 +114,88 @@ namespace BindTools
 
 			return BTools;
 		}
+
+		#endregion
+
+		#region GlobalBinds
+		public static void GBAdd(BTGlobalBind Bind)
+		{
+			db.Query("INSERT INTO GlobalBinds (Name, ItemID, Permission, Commands, Awaiting, Looping, Slot, Prefix) " +
+				"VALUES (@0, @1, @2, @3, @4, @5, @6, @7);", Bind.Name, Bind.ItemID, Bind.Permission,
+				string.Join("~;*;~", Bind.Commands), (Bind.Awaiting ? 1 : 0),
+				(Bind.Looping ? 1 : 0), Bind.Slot, Bind.Prefix);
+		}
+
+		public static void GBDelete(string BindName)
+		{
+			db.Query("DELETE FROM GlobalBinds WHERE Name=@0;", BindName);
+		}
+
+		public static void GBUpdate(BTGlobalBind Bind)
+		{
+			GBDelete(Bind.Name);
+			GBAdd(Bind);
+		}
+
+		public static void GBGet()
+		{
+			BindTools.GlobalBinds = new List<BTGlobalBind>();
+			using (QueryResult reader = db.QueryReader("SELECT * FROM GlobalBinds"))
+			{
+				while (reader.Read())
+				{
+					var commands = reader.Get<string>("Commands").Split('~', ';', '*', ';', '~');
+					string[] Commands = (from string c in commands where (c != "") select c).ToArray();
+					BindTools.GlobalBinds.Add(new BTGlobalBind
+					(
+						reader.Get<string>("Name"),
+						reader.Get<int>("ItemID"),
+						Commands,
+						reader.Get<string>("Permission"),
+						reader.Get<int>("Slot"),
+						reader.Get<int>("Prefix"),
+						(reader.Get<int>("Looping") == 1),
+						(reader.Get<int>("Awaiting") == 1)
+					));
+				}
+			}
+		}
+		#endregion
+
+		#region Prefixes
+		public static void PAdd(BTPrefix Prefix)
+		{
+			db.Query("INSERT INTO Prefixes (Name, Permission, Allowed)  VALUES (@0, @1, @2);",
+				Prefix.Name, Prefix.Permission, string.Join(",", Prefix.AllowedPrefixes));
+		}
+
+		public static void PDelete(string PrefixGroupName)
+		{
+			db.Query("DELETE FROM Prefixes WHERE Name=@0;", PrefixGroupName);
+		}
+
+		public static void PUpdate(BTPrefix Prefix)
+		{
+			PDelete(Prefix.Name);
+			PAdd(Prefix);
+		}
+
+		public static void PGet()
+		{
+			BindTools.Prefixes = new List<BTPrefix>();
+			using (QueryResult reader = db.QueryReader("SELECT * FROM Prefixes"))
+			{
+				while (reader.Read())
+				{
+					BindTools.Prefixes.Add(new BTPrefix
+					(
+						reader.Get<string>("Name"),
+						reader.Get<string>("Permission"),
+						reader.Get<string>("Allowed").Split(',').Select(a => int.Parse(a)).ToList()
+					));
+				}
+			}
+		}
+		#endregion
 	}
 }

@@ -7,25 +7,26 @@ namespace BindTools
 {
 	public class BTPlayer
 	{
-		public TSPlayer TSPlayer;
-		public List<BindTool> BindTools;
-		public List<string> AwaitingCommands;
-		public bool HasAwaitingCommands { get { return (AwaitingCommands.Count > 0); } }
-		public string AwaitingCommand { get { return ((AwaitingCommands.Count > 0) ? AwaitingCommands[0] : null); } }
+		public TSPlayer tsPlayer { get; set; }
+		public List<BindTool> bindTools { get; set; }
+		public List<string> awaitingCommands { get; set; }
+		private List<int> globalCount { get; set; }
+		public bool hasAwaitingCommands { get { return (awaitingCommands.Count > 0); } }
+		public string awaitingCommand { get { return ((awaitingCommands.Count > 0) ? awaitingCommands[0] : null); } }
 
 		public BTPlayer(int Index)
 		{
-			TSPlayer = TShock.Players[Index];
-			BindTools = (TSPlayer.IsLoggedIn)
-						? BTDatabase.BTGet(TSPlayer.User.ID)
+			tsPlayer = TShock.Players[Index];
+			bindTools = (tsPlayer.IsLoggedIn)
+						? BTDatabase.BTGet(tsPlayer.User.ID)
 						: new List<BindTool>();
-			AwaitingCommands = new List<string>();
+			awaitingCommands = new List<string>();
 		}
 
 		public void AddBindTool(BindTool NewBT, bool Database)
 		{
 			List<BindTool> Removed = new List<BindTool>();
-			foreach (BindTool PT in BindTools)
+			foreach (BindTool PT in bindTools)
 			{
 				if ((PT.item == NewBT.item)
 					&& ((PT.slot == NewBT.slot)
@@ -36,20 +37,20 @@ namespace BindTools
 						|| ((PT.prefix == -1) && (NewBT.prefix != -1))))
 				{
 					Removed.Add(PT);
-					if (Database && TSPlayer.IsLoggedIn)
-					{ BTDatabase.BTDelete(TSPlayer.User.ID, PT.item, PT.slot, PT.prefix); }
+					if (Database && tsPlayer.IsLoggedIn)
+					{ BTDatabase.BTDelete(tsPlayer.User.ID, PT.item, PT.slot, PT.prefix); }
 				}
 			}
-			BindTools = (from BindTool b in BindTools
+			bindTools = (from BindTool b in bindTools
 						 where !Removed.Contains(b)
 						 select b).ToList();
-			BindTools.Add(NewBT);
-			if (Database && TSPlayer.IsLoggedIn)
-			{ BTDatabase.BTAdd(TSPlayer.User.ID, NewBT); }
+			bindTools.Add(NewBT);
+			if (Database && tsPlayer.IsLoggedIn)
+			{ BTDatabase.BTAdd(tsPlayer.User.ID, NewBT); }
 		}
 		public BindTool GetBindTool(Item item, int Slot)
 		{
-			foreach (BindTool bt in BindTools)
+			foreach (BindTool bt in bindTools)
 			{
 				if ((bt.item == item.netID) && ((bt.slot == -1) || (bt.slot == Slot))
 					&& ((bt.prefix == -1) || (bt.prefix == item.prefix))) { return bt; }
@@ -60,35 +61,35 @@ namespace BindTools
 		{
 			if ((slot == -1) && (prefix == -1))
 			{
-				if (TSPlayer.IsLoggedIn)
-				{ BTDatabase.BTDelete(TSPlayer.User.ID, item); }
-				BindTools = (from BindTool b in BindTools
+				if (tsPlayer.IsLoggedIn)
+				{ BTDatabase.BTDelete(tsPlayer.User.ID, item); }
+				bindTools = (from BindTool b in bindTools
 								where (b.item != item)
 								select b).ToList();
 			}
 			else if (slot == -1)
 			{
-				if (TSPlayer.IsLoggedIn)
-				{ BTDatabase.BTDelete(TSPlayer.User.ID, item, slot); }
-				BindTools = (from BindTool b in BindTools
+				if (tsPlayer.IsLoggedIn)
+				{ BTDatabase.BTDelete(tsPlayer.User.ID, item, slot); }
+				bindTools = (from BindTool b in bindTools
 							 where !((b.item == item)
 								 && (b.prefix == prefix))
 							 select b).ToList();
 			}
 			else if (prefix == -1)
 			{
-				if (TSPlayer.IsLoggedIn)
-				{ BTDatabase.BTDelete(TSPlayer.User.ID, item, prefix, false); }
-				BindTools = (from BindTool b in BindTools
+				if (tsPlayer.IsLoggedIn)
+				{ BTDatabase.BTDelete(tsPlayer.User.ID, item, prefix, false); }
+				bindTools = (from BindTool b in bindTools
 							 where !((b.item == item)
 								 && (b.prefix == prefix))
 							 select b).ToList();
 			}
 			else
 			{
-				if (TSPlayer.IsLoggedIn)
-				{ BTDatabase.BTDelete(TSPlayer.User.ID, item, slot, prefix); }
-				BindTools = (from BindTool b in BindTools
+				if (tsPlayer.IsLoggedIn)
+				{ BTDatabase.BTDelete(tsPlayer.User.ID, item, slot, prefix); }
+				bindTools = (from BindTool b in bindTools
 							 where !((b.item == item)
 								 && (b.slot == slot)
 								 && (b.prefix == prefix))
@@ -96,15 +97,36 @@ namespace BindTools
 			}
 		}
 
+		public BTGlobalBind GetGlobalBind(Item item, int Slot)
+		{
+			foreach (BTGlobalBind gb in BindTools.GlobalBinds)
+			{
+				if ((gb.ItemID == item.netID) && tsPlayer.HasPermission(gb.Permission)
+					&& ((gb.Slot == -1) || (gb.Slot == Slot))
+					&& ((gb.Prefix == -1) || (gb.Prefix == item.prefix))) { return gb; }
+			}
+			return new BTGlobalBind(true);
+		}
+		public BTGlobalBind GetGlobalBind(int item, int Slot, int Prefix)
+		{
+			foreach (BTGlobalBind gb in BindTools.GlobalBinds)
+			{
+				if ((gb.ItemID == item) && tsPlayer.HasPermission(gb.Permission)
+					&& ((gb.Slot == -1) || (gb.Slot == Slot))
+					&& ((gb.Prefix == -1) || (gb.Prefix == Prefix))) { return gb; }
+			}
+			return new BTGlobalBind(true);
+		}
+
 		public void AddCommand(string Format)
-		{ AwaitingCommands = (new List<string> { Format }).Concat(AwaitingCommands).ToList(); }
+		{ awaitingCommands = (new List<string> { Format }).Concat(awaitingCommands).ToList(); }
 		public bool ExecuteCommand(params string[] args)
 		{
 			try
 			{
-				string Command = string.Format(AwaitingCommands[0], args);
-				Commands.HandleCommand(TSPlayer, Command);
-				AwaitingCommands.RemoveAt(0);
+				string Command = string.Format(awaitingCommands[0], args);
+				Commands.HandleCommand(tsPlayer, Command);
+				awaitingCommands.RemoveAt(0);
 				return true;
 			}
 			catch { return false; }

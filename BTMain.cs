@@ -7,6 +7,7 @@ using TShockAPI;
 using TerrariaApi.Server;
 using Microsoft.Xna.Framework;
 using TShockAPI.Hooks;
+using Terraria.Localization;
 
 namespace BindTools
 {
@@ -14,6 +15,8 @@ namespace BindTools
 	public class BindTools : TerrariaPlugin
 	{
 		public static BTPlayer[] BTPlayers = new BTPlayer[255];
+		public static List<BTGlobalBind> GlobalBinds = new List<BTGlobalBind>();
+		public static List<BTPrefix> Prefixes = new List<BTPrefix>();
 		public override string Name { get { return "BindTools"; } }
 		public override string Author { get { return "by Jewsus & Anzhelika"; } }
 		public override string Description { get { return "Enables command binding to tools. Rewrite of InanZen's AdminTools"; } }
@@ -26,18 +29,29 @@ namespace BindTools
 			ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
 			PlayerHooks.PlayerPostLogin += OnLogin;
 			GetDataHandlers.PlayerUpdate += OnPlayerUpdate;
-			Commands.ChatCommands.Add(new Command("bindtools.bind", BindToolCMD, "bindtool", "bt")
+			GeneralHooks.ReloadEvent += OnReload;
+			Commands.ChatCommands.Add(new Command(BTPermissions.BTool, BindToolCMD, "bindtool", "bt")
 			{
 				AllowServer = false,
 				HelpText = string.Format("Use '{0}bt help'.", TShock.Config.CommandSpecifier)
 			});
-			Commands.ChatCommands.Add(new Command("bindtools.wait", BindWaitCMD, "bindwait", "bw")
+			Commands.ChatCommands.Add(new Command(BTPermissions.BWait, BindWaitCMD, "bindwait", "bw")
 			{
 				AllowServer = false,
 				HelpText = string.Format("Use '{0}bw help'.", TShock.Config.CommandSpecifier)
 			});
+			Commands.ChatCommands.Add(new Command(BTPermissions.BGlobal, BindGlobalCMD, "bindglobal", "bgl")
+			{
+				HelpText = string.Format("Use '{0}bgl help'.", TShock.Config.CommandSpecifier)
+			});
+			Commands.ChatCommands.Add(new Command(BTPermissions.BPrefix, BindPrefixCMD, "bprefix", "bindprefix", "bpr")
+			{
+				AllowServer = false,
+				HelpText = string.Format("Use '{0}bgl help'.", TShock.Config.CommandSpecifier)
+			});
 			BTDatabase.DBConnect();
 		}
+
 		protected override void Dispose(bool disposing)
 		{
 			if (disposing)
@@ -46,6 +60,7 @@ namespace BindTools
 				ServerApi.Hooks.ServerLeave.Deregister(this, OnLeave);
 				PlayerHooks.PlayerPostLogin -= OnLogin;
 				GetDataHandlers.PlayerUpdate -= OnPlayerUpdate;
+				GeneralHooks.ReloadEvent -= OnReload;
 			}
 			base.Dispose(disposing);
 		}
@@ -56,11 +71,13 @@ namespace BindTools
 		{ BTPlayers[args.Player.Index] = new BTPlayer(args.Player.Index); }
 		private void OnLeave(LeaveEventArgs args)
 		{ BTPlayers[args.Who] = null; }
+		private void OnReload(ReloadEventArgs args)
+		{ BTDatabase.GBGet(); BTDatabase.PGet(); }
 
-		private static void BindToolCMD(CommandArgs args)
+		private void BindToolCMD(CommandArgs args)
 		{
 			var player = BTPlayers[args.Player.Index];
-			if ((player == null) || (player.TSPlayer == null)) return;
+			if ((player == null) || (player.tsPlayer == null)) return;
 
 			if (args.Parameters.Count == 0)
 			{
@@ -115,7 +132,7 @@ namespace BindTools
 				if ((args.Parameters.Count > 1)
 					&& (!PaginationTools.TryParsePageNumber(args.Parameters, 1, args.Player, out page)))
 				{ return; }
-				var Normal = BTPlayers[args.Player.Index].BindTools.Select
+				var Normal = BTPlayers[args.Player.Index].bindTools.Select
 				(
 					b => (string.Format("Item: [i:{0}]. Commands: {1}. Awaiting: {2}. Looping: {3}. Slot: {4}. Prefix: {5}. Database: {6}.",
 						b.item,
@@ -139,7 +156,7 @@ namespace BindTools
 
 			if ((args.Player.TPlayer.selectedItem > 9) && (args.Player.TPlayer.selectedItem != 58))
 			{
-				args.Player.SendMessage("Please select an item from your Quickbar", Color.Red);
+				args.Player.SendMessage("Please select an item from your hotbar or cursor", Color.Red);
 				return;
 			}
 
@@ -180,7 +197,7 @@ namespace BindTools
 			if (clear)
 			{
 				string _prefix = Lang.prefix[item.prefix].Value;
-				player.RemoveBindTool(item.netID, ((slot) ? -1 : args.Player.TPlayer.selectedItem), ((prefix) ? -1 :item.prefix));
+				player.RemoveBindTool(item.netID, ((slot) ? -1 : args.Player.TPlayer.selectedItem), ((prefix) ? -1 : item.prefix));
 				args.Player.SendMessage(string.Format("All commands have been removed from [i:{0}]{1}{2}", item.netID,
 					((slot) ? "" : " at " + ((args.Player.TPlayer.selectedItem > 9) ? "cursor" : "hotbar-" + (args.Player.TPlayer.selectedItem + 1)) + " slot"),
 					((prefix) ? "" : (" with " + (_prefix == "" ? "no" : _prefix) + " prefix"))), Color.BurlyWood);
@@ -190,7 +207,7 @@ namespace BindTools
 			else if (args.Parameters.Count < 1) { args.Player.SendMessage("Missing commands", Color.LightSalmon); return; }
 
 			string NewMsg = string.Join(" ", args.Message.Replace("\"", "\\\"").Split(' ').Skip(1));
-			List<string> NewArgs = ParseParameters(NewMsg);
+			List<string> NewArgs = BTExtensions.ParseParameters(NewMsg);
 
 			var cmdstring = string.Join(" ", NewArgs.GetRange(flagmod, NewArgs.Count - flagmod));
 			List<string> cmdlist = cmdstring.Split(';').ToList();
@@ -198,7 +215,15 @@ namespace BindTools
 			for (int i = 0; i < cmdlist.Count; i++)
 			{ cmdlist[i] = cmdlist[i].TrimStart(' '); }
 
-			player.AddBindTool(new BindTool(item.netID, (slot ? args.Player.TPlayer.selectedItem : -1), cmdlist, awaiting, looping, (prefix ? item.prefix : -1), database), database);
+			BindTool BindTool = new BindTool(item.netID, (slot ? args.Player.TPlayer.selectedItem : -1), cmdlist, awaiting, looping, (prefix ? item.prefix : -1), database);
+			
+			if (BTExtensions.AnyGBMatch(BindTool) && !args.Player.HasPermission(BTPermissions.Overwrite))
+			{
+				args.Player.SendErrorMessage("You can't overwrite global binds!");
+				return;
+			}
+
+			player.AddBindTool(BindTool, database);
 
 			string Prefix = Lang.prefix[item.prefix].Value;
 
@@ -212,14 +237,14 @@ namespace BindTools
 			args.Player.SendMessage(builder.ToString(), Color.BurlyWood);
 		}
 
-		private static void BindWaitCMD(CommandArgs args)
+		private void BindWaitCMD(CommandArgs args)
 		{
 			var player = BTPlayers[args.Player.Index];
-			if ((player == null) || (player.TSPlayer == null)) return;
+			if ((player == null) || (player.tsPlayer == null)) return;
 			if (args.Parameters.Count == 0)
 			{
-				if (player.HasAwaitingCommands) { player.TSPlayer.SendSuccessMessage("Current command format: {0}", player.AwaitingCommand); }
-				else { player.TSPlayer.SendSuccessMessage("You do not have any awaiting commands."); }
+				if (player.hasAwaitingCommands) { player.tsPlayer.SendSuccessMessage("Current command format: {0}", player.awaitingCommand); }
+				else { player.tsPlayer.SendSuccessMessage("You do not have any awaiting commands."); }
 				return;
 			}
 			else if (args.Parameters[0].ToLower() == "help")
@@ -227,7 +252,7 @@ namespace BindTools
 				List<string> Help = new List<string>
 				{
 					string.Format("[c/aaaa00:'{0}bindwait list' or '{0}bw list' - shows all awaiting commands]", TShock.Config.CommandSpecifier),
-					string.Format("'{0}bindwait skip <Count / \"all\">' - skips commands in queue", TShock.Config.CommandSpecifier),
+					string.Format("'{0}bindwait skip <Count/\"all\">' - skips commands in queue", TShock.Config.CommandSpecifier),
 					string.Format("[c/aaaa00:'{0}bindwait \"Argument1\" \"Argument2\" \"Argument3\" ...' - executes current awaiting command with certain arguments]", TShock.Config.CommandSpecifier),
 					"You need to fill all argument fields."
 				};
@@ -240,7 +265,7 @@ namespace BindTools
 				if ((args.Parameters.Count > 1)
 					&& (!PaginationTools.TryParsePageNumber(args.Parameters, 1, args.Player, out page)))
 				{ return; }
-				PaginationTools.SendPage(args.Player, page, player.AwaitingCommands,
+				PaginationTools.SendPage(args.Player, page, player.awaitingCommands,
 						new PaginationTools.Settings
 						{
 							HeaderFormat = "Binds queue ({0}/{1}):",
@@ -255,11 +280,11 @@ namespace BindTools
 				int count = 1;
 				if ((args.Parameters.Count > 1) && (!int.TryParse(args.Parameters[1], out count)))
 				{
-					if (args.Parameters[1].ToLower() == "all") { count = player.AwaitingCommands.Count; }
+					if (args.Parameters[1].ToLower() == "all") { count = player.awaitingCommands.Count; }
 					else { args.Player.SendErrorMessage("Invalid skip count!"); return; }
 				}
-				if (count > player.AwaitingCommands.Count) { count = player.AwaitingCommands.Count; }
-				player.AwaitingCommands.RemoveRange(0, count);
+				if (count > player.awaitingCommands.Count) { count = player.awaitingCommands.Count; }
+				player.awaitingCommands.RemoveRange(0, count);
 				args.Player.SendSuccessMessage("Successfully skiped {0} commands.", count);
 				return;
 			}
@@ -268,74 +293,235 @@ namespace BindTools
 			{ args.Player.SendErrorMessage("Invalid text format!"); }
 		}
 
+		private void BindGlobalCMD(CommandArgs args)
+		{
+			string Parameter = (args.Parameters.Count == 0) ? "help" : args.Parameters[0].ToLower();
+			switch (Parameter)
+			{
+				case "add":
+				case "del":
+					{
+						if (!BTExtensions.IsAdmin(args.Player)) { return; }
+						BTExtensions.ManageGlobalBinds(args);
+						break;
+					}
+				case "list":
+					{
+						int page = 1;
+						if ((args.Parameters.Count > 1)
+							&& (!PaginationTools.TryParsePageNumber(args.Parameters, 1, args.Player, out page)))
+						{ return; }
+
+						var GBinds = (from BTGlobalBind b in GlobalBinds
+										where args.Player.HasPermission(b.Permission)
+										select (string.Format("Item: [i:{0}]. Name: {1}. Commands: {2}. Permission: {3}. Awaiting: {4}. Looping: {5}. Slot: {6}. Prefix: {7}.",
+											b.ItemID,
+											b.Name,
+											string.Join("; ", b.Commands),
+											b.Permission,
+											b.Awaiting,
+											b.Looping,
+											((b.Slot == -1) ? "Any" : (b.Slot == 58) ? "Cursor" : "Hotbar-" + (b.Slot + 1)),
+											((b.Prefix == -1) ? "Any" : (b.Prefix == 0) ? "None" : Lang.prefix[b.Prefix].Value)))).ToList();
+
+						PaginationTools.SendPage(args.Player, page, GBinds,
+								new PaginationTools.Settings
+								{
+									HeaderFormat = "Global binds ({0}/{1}):",
+									FooterFormat = "Type {0}bgl list b {{0}} for more info.".SFormat(TShock.Config.CommandSpecifier),
+									NothingToDisplayString = "There are currently no global binds you allowed to use."
+								}
+							);
+						break;
+					}
+				case "help":
+					{
+						List<string> Help = new List<string>
+						{
+							string.Format("{0}bgl list [page]", TShock.Config.CommandSpecifier),
+						};
+						if (args.Player.HasPermission("bindtools.admin"))
+						{
+							List<string> Help2 = new List<string>
+							{
+								string.Format("{0}bgl add [Name] [ItemID] [Permission] [SlotID] [PrefixID] [Looping] [Awaiting] commands; separated; by semicolon", TShock.Config.CommandSpecifier),
+								string.Format("{0}bgl del [Name]", TShock.Config.CommandSpecifier),
+								"SlotID: -1 for any; 1-10 - hotbar; 100 for cursor",
+								"PrefixID: -1 for any; Looping: true/false; Awaiting: true/false",
+							};
+							Help.AddRange(Help2);
+						}
+						int page = 1;
+						if ((args.Parameters.Count > 1)
+							&& (!PaginationTools.TryParsePageNumber(args.Parameters, 1, args.Player, out page)))
+						{ return; }
+						PaginationTools.SendPage(args.Player, page, Help,
+								new PaginationTools.Settings
+								{
+									HeaderFormat = "BindGlobal help ({0}/{1}):",
+									FooterFormat = "Type {0}bgl help {{0}} for more info.".SFormat(TShock.Config.CommandSpecifier)
+								}
+							);
+						break;
+					}
+			}
+		}
+
+		private void BindPrefixCMD(CommandArgs args)
+		{
+			string Parameter = (args.Parameters.Count == 0) ? "help" : args.Parameters[0].ToLower();
+			switch (Parameter)
+			{
+				case "add":
+				case "del":
+					{
+						if (!BTExtensions.IsAdmin(args.Player)) { return; }
+						string Parameter2 = (args.Parameters.Count == 1) ? "help" : args.Parameters[1].ToLower();
+						switch (Parameter2)
+						{
+							case "g":
+							case "group":
+								{
+									BTExtensions.ManagePrefixGroups(args);
+									return;
+								}
+							case "p":
+							case "prefix":
+								{
+									BTExtensions.ManagePrefixesInPrefixGroups(args);
+									return;
+								}
+							default:
+								{
+                                    args.Player.SendSuccessMessage("BindPrefix help (1/1):");
+									args.Player.SendInfoMessage("{0}bprefix add group [Name] [Permission] [AllowedPrefixes (1 3 10...)]\r\n" +
+										"{0}bprefix del group [Name]\r\n" +
+										"{0}bprefix <add/del> prefix [Name] [PrefixID]", TShock.Config.CommandSpecifier);
+									return;
+								}
+						}
+					}
+				case "list":
+					{
+						var Available = BTExtensions.AvailablePrefixes(args.Player);
+						if (Available.Item1) { args.Player.SendSuccessMessage("All prefixes available."); }
+						else if (Available.Item2.Count == 0) { args.Player.SendSuccessMessage("No prefixes available."); }
+						else { args.Player.SendSuccessMessage("Available prefixes: {0}.", string.Join(", ", Available.Item2)); }
+						return;
+					}
+				case "listgr":
+					{
+						if (!BTExtensions.IsAdmin(args.Player)) { return; }
+						args.Player.SendSuccessMessage("Available prefix groups:");
+						args.Player.SendInfoMessage(string.Join("\r\n", Prefixes.Select(p =>
+							string.Format("Name: {0}. Permission: {1}. Prefixes: {2}.",
+								p.Name, p.Permission, string.Join(", ", p.AllowedPrefixes)))));
+						return;
+					}
+				case "help":
+					{
+						List<string> Help = new List<string>
+						{
+							string.Format("{0}bpr [PrefixID]", TShock.Config.CommandSpecifier),
+							string.Format("{0}bpr list [page]", TShock.Config.CommandSpecifier)
+						};
+						if (args.Player.HasPermission("bindtools.admin"))
+						{
+							List<string> Help2 = new List<string>
+							{
+								string.Format("{0}bpr listgr [page]", TShock.Config.CommandSpecifier),
+								string.Format("{0}bpr add <group/g> [Name] [Permission] [AllowedPrefixes (1 3 10...)]", TShock.Config.CommandSpecifier),
+								string.Format("{0}bpr del <group/g> [Name]", TShock.Config.CommandSpecifier),
+								string.Format("{0}bpr <add/del> <prefix/p> [Name] [PrefixID]", TShock.Config.CommandSpecifier)
+							};
+							Help.AddRange(Help2);
+						}
+						int page = 1;
+						if ((args.Parameters.Count > 1)
+							&& (!PaginationTools.TryParsePageNumber(args.Parameters, 1, args.Player, out page)))
+						{ return; }
+						PaginationTools.SendPage(args.Player, page, Help,
+								new PaginationTools.Settings
+								{
+									HeaderFormat = "BindPrefix help ({0}/{1}):",
+									FooterFormat = "Type {0}bpr help {{0}} for more info.".SFormat(TShock.Config.CommandSpecifier)
+								}
+							);
+						return;
+					}
+			}
+			
+			Tuple<bool, List<int>> Allowed = BTExtensions.AvailablePrefixes(args.Player);
+			if (((Allowed.Item2 == null) || (Allowed.Item2.Count == 0)) && !Allowed.Item1)
+			{
+				args.Player.SendErrorMessage("No prefixes allowed.");
+				return;
+			}
+			if (args.Parameters.Count != 1)
+			{
+				args.Player.SendErrorMessage("/bpr [PrefixID]");
+				return;
+			}
+			if ((args.Player.TPlayer.selectedItem > 9) && (args.Player.TPlayer.selectedItem != 58))
+			{
+				args.Player.SendMessage("Please select an item from your hotbar or cursor", Color.Red);
+				return;
+			}
+			if (!int.TryParse(args.Parameters[0], out int Prefix)
+				|| (Prefix < 0) || (Prefix > (Lang.prefix.Length - 1)))
+			{
+				args.Player.SendErrorMessage("Invalid PrefixID!");
+				return;
+			}
+			if (((Allowed.Item2 == null) || (!Allowed.Item2.Contains(Prefix))) && !Allowed.Item1)
+			{
+				args.Player.SendErrorMessage("This prefix is not allowed!");
+				return;
+			}
+
+			bool SSC = Main.ServerSideCharacter;
+			if (!SSC)
+			{
+				Main.ServerSideCharacter = true;
+				NetMessage.SendData((int)PacketTypes.WorldInfo, args.Player.Index, -1, NetworkText.Empty);
+			}
+
+			Item Item = args.Player.TPlayer.inventory[args.Player.TPlayer.selectedItem];
+			Item.prefix = (byte)Prefix;
+			args.Player.TPlayer.inventory[args.Player.TPlayer.selectedItem] = Item;
+			NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, NetworkText.FromLiteral(Item.Name), args.Player.Index, args.Player.TPlayer.selectedItem, Prefix);
+			NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, NetworkText.FromLiteral(Item.Name), args.Player.Index, args.Player.TPlayer.selectedItem, Prefix);
+
+			if (!SSC)
+			{
+				Main.ServerSideCharacter = false;
+				NetMessage.SendData((int)PacketTypes.WorldInfo, args.Player.Index, -1, NetworkText.Empty);
+			}
+
+			args.Player.SendSuccessMessage("Successfully changed [i:{0}]'s prefix to {1} ({2})", args.Player.TPlayer.inventory[args.Player.TPlayer.selectedItem].netID, Prefix, Lang.prefix[Prefix].Value);
+		}
+
 		private void OnPlayerUpdate(object sender, GetDataHandlers.PlayerUpdateEventArgs args)
 		{
 			BTPlayer player = BTPlayers[args.PlayerId];
-			if ((player == null) || (player.TSPlayer == null)) return;
+			if ((player == null) || (player.tsPlayer == null)
+				|| ((player.bindTools.Count == 0) && (GlobalBinds.Count == 0))) return;
 			if ((args.Control & 32) == 32)
 			{
 				try
 				{
 					Item Selected = Main.player[args.PlayerId].inventory[args.Item];
+					var GB = BTExtensions.GetGlobalBind(Selected, args.Item);
 					var BT = player.GetBindTool(Selected, args.Item);
-					if ((BT != null) && ((BT.slot == -1) || (BT.slot == player.TSPlayer.TPlayer.selectedItem)) && ((BT.prefix == -1) || (BT.prefix == Selected.prefix)))
-					{ BT.DoCommand(player.TSPlayer); }
+
+					if ((GB.Name != null) && (player.tsPlayer.HasPermission(GB.Permission)) && (BT == null))
+					{ GB.DoCommand(player.tsPlayer); }
+
+					else if (BT != null)
+					{ BT.DoCommand(player.tsPlayer); }
 				}
 				catch (Exception ex) { TShock.Log.ConsoleError(ex.ToString()); }
 			}
 		}
-
-		#region TShock parser code
-
-		private static List<String> ParseParameters(string str)
-		{
-			var ret = new List<string>();
-			var sb = new StringBuilder();
-			bool instr = false;
-			for (int i = 0; i < str.Length; i++)
-			{
-				char c = str[i];
-
-				if (c == '\\' && ++i < str.Length)
-				{
-					if (str[i] != '"' && str[i] != ' ' && str[i] != '\\')
-						sb.Append('\\');
-					sb.Append(str[i]);
-				}
-				else if (c == '"')
-				{
-					instr = !instr;
-					if (!instr)
-					{
-						ret.Add(sb.ToString());
-						sb.Clear();
-					}
-					else if (sb.Length > 0)
-					{
-						ret.Add(sb.ToString());
-						sb.Clear();
-					}
-				}
-				else if (IsWhiteSpace(c) && !instr)
-				{
-					if (sb.Length > 0)
-					{
-						ret.Add(sb.ToString());
-						sb.Clear();
-					}
-				}
-				else
-					sb.Append(c);
-			}
-			if (sb.Length > 0)
-				ret.Add(sb.ToString());
-
-			return ret;
-		}
-
-		private static bool IsWhiteSpace(char c)
-		{ return c == ' ' || c == '\t' || c == '\n'; }
-
-		#endregion
 	}
 }
