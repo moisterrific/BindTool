@@ -17,9 +17,9 @@ namespace BindTools
 		public BTPlayer(int Index)
 		{
 			tsPlayer = TShock.Players[Index];
-			bindTools = (tsPlayer.IsLoggedIn)
-						? BTDatabase.BTGet(tsPlayer.User.ID)
-						: new List<BindTool>();
+            bindTools = (tsPlayer.User == null)
+                        ? new List<BindTool>()
+                        : BTDatabase.BTGet(tsPlayer.User.ID);
 			awaitingCommands = new List<string>();
 		}
 

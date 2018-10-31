@@ -68,7 +68,10 @@ namespace BindTools
 		private void OnGreet(GreetPlayerEventArgs args)
 		{ BTPlayers[args.Who] = new BTPlayer(args.Who); }
 		private void OnLogin(PlayerPostLoginEventArgs args)
-		{ BTPlayers[args.Player.Index] = new BTPlayer(args.Player.Index); }
+		{
+            if (args?.Player == null) { return; }
+            BTPlayers[args.Player.Index] = new BTPlayer(args.Player.Index);
+        }
 		private void OnLeave(LeaveEventArgs args)
 		{ BTPlayers[args.Who] = null; }
 		private void OnReload(ReloadEventArgs args)
