@@ -2,11 +2,12 @@
 
 An update on InanZen's AdminTools BindTool command.
 
+## Overview
 Enables the binding of commands to items in hotbar or cursor.
 
-/bindtool (/bt) command:
-/bindtool [-flags] commands; separated; by semicolon.
-Available flags:
+### /bindtool (/bt) command:
+- /bindtool [-flags] commands; separated; by semicolon.
+- Available flags:
 -l will loop trough commands in order
 -s will bind item only at certain slot
 -p will bind item only with certain prefix
@@ -59,6 +60,7 @@ If you create specific bind, general bind will be removed
 You can't overwrite global bind if you don't have bindtools.overwrite permission
 You can't use all prefixes in /bprefix command if you don't have bindtools.allowprefix permission or permission of certain prefix group.
 
+## Permissions
 bindtools.command.bind - /bindtool
 bindtools.command.wait - /bindwait
 bindtools.command.global - /bindglobal
@@ -67,4 +69,5 @@ bindtools.admin - allows you to manage global binds and prefix groups
 bindtools.overwrite - allows you overwrite global binds with /bindtool
 bindtools.allowprefix - allows you to use all prefixes in /bprefix command 
 
-https://tshock.co/xf/index.php?resources/bindtools.194/
+## Source
+[BindTools | TShock for Terraria](https://tshock.co/xf/index.php?resources/bindtools.194/)
